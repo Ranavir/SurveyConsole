@@ -85,7 +85,10 @@ public class Keyin {
 	    }
 	    return s;
 	  }
-
+	  /*public static void main(String...args){
+		  String str = inString();
+		  System.out.print("value entered "+str);
+	  }*/
 	  public static int inInt(String prompt) {
 	    while (true) {
 	      inputFlush();

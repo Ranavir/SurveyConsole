@@ -20,11 +20,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 
 
 
@@ -87,7 +92,84 @@ public class MyPostgresqlDaoFactory extends DaoFactory implements Serializable {
 		
 	
 		return conn;
-	}
+	}//end getConnection
+	/**************************************************
+	 * To get the maximum sequence id of a table 
+	 * @param tableName
+	 * @param pkid
+	 * @return long
+	 * @author Ranvir
+	 * @date 02-Nov-2016
+	 *************************************************/
+	@Override
+	public long getSequenceID(String tableName, String pkid) {
+		long id = 0;
+		Connection con = null ;
+		Statement st = null ;
+		ResultSet rs = null ;
+		try
+		{
+			con = getConnection();
+			st = con.createStatement();
+			rs = st.executeQuery("select max("+pkid+") from "+tableName); 
+			if(rs.next())
+				id=rs.getLong(1);
+			id++;
+		}
+		catch(SQLException se)
+		{
+			logger.warn(se);
+		}
+		catch(Exception e)
+		{
+			logger.warn(e);
+		}
+		finally
+		{
+			Utils.closeDB(st,rs,con);
+		}
+		logger.info("Next value of column "+pkid+" of table "+tableName+" = "+id);
+		return id;
+	}//end getSequenceID
+	
+	/**************************************************************************************************
+	 * This method takes a table name as arguement and gives the keys of the table 
+	 * in a List
+	 * 
+	 * @param tableName
+	 * @return ArrayList<String>
+	 * @author Ranvir
+	 * @date 05-Nov-2016
+	 *************************************************************************************************/
+	@Override
+	public ArrayList<String> getTableStructure(String tableName,String colPattern) {
+		ArrayList<String> alResponseTblColList = new ArrayList<String>();
+		Connection con = null ;
+		ResultSet rs = null ;
+		try
+		{
+			con = getConnection();
+			DatabaseMetaData md = con.getMetaData();
+			rs = md.getColumns(null, null, tableName, colPattern+"%");
+			while(rs.next()) {//columns with this pattern exists
+				alResponseTblColList.add(rs.getString(4));
+			}
+			rs.close();
+		}
+		catch(SQLException se)
+		{
+			logger.warn(se);
+		}
+		catch(Exception e)
+		{
+			logger.warn(e);
+		}
+		finally
+		{
+			Utils.closeDB(rs,con);
+		}
+		return alResponseTblColList;
+	}//end getSequenceID
 	@Override
 	public void finalize(){
 		if(null != logger){
@@ -97,7 +179,9 @@ public class MyPostgresqlDaoFactory extends DaoFactory implements Serializable {
 		}
 	}
 	public static void main(String...args){
-		System.out.println(MyPostgresqlDaoFactory.getInstance().getConnection());
+		//System.out.println(MyPostgresqlDaoFactory.getInstance().getConnection());
+		System.out.println(MyPostgresqlDaoFactory.getInstance().getTableStructure("lime_survey_111238", "111238"));
 	}
+	
 		
 }

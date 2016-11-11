@@ -18,6 +18,7 @@ package com.stl.surveyconsole.utils;
 
 import java.io.Serializable;
 import java.sql.Connection;
+import java.util.ArrayList;
 
 /**
  * @author Ranavir
@@ -37,14 +38,33 @@ public abstract class DaoFactory implements Serializable{
 	
 	
 	
-	/**
+	/*************************************
 	 * To get Database Connection object
 	 * 
 	 * @author Ranavir
 	 * @param whichFactory
 	 * @return DaoFactory
-	 */
+	 ************************************/
 	public abstract Connection getConnection() ;
+	/**************************************************************************************************
+	 * This method takes a table name as arguement and gives the keys of the table 
+	 * in a List, you can give column patterns also
+	 * 
+	 * @param tableName
+	 * @return ArrayList<String>
+	 * @author Ranvir
+	 * @date 05-Nov-2016
+	 *************************************************************************************************/
+	public abstract ArrayList<String> getTableStructure(String tableName,String colPattern);
+	/**
+	 * To get the maximum sequence id of a table 
+	 * @param tableName
+	 * @param pkid
+	 * @return long
+	 * @author Ranvir
+	 * @date 02-Nov-2016
+	 */
+	public abstract long getSequenceID(String tableName, String pkid);
 	
 	public static DaoFactory getDAOFactory(int whichFactory) {
 		switch (whichFactory) {

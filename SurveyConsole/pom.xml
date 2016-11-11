@@ -43,6 +43,12 @@
 		    <artifactId>commons-codec</artifactId>
 		    <version>1.10</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/commons-lang/commons-lang -->
+		<dependency>
+		    <groupId>commons-lang</groupId>
+		    <artifactId>commons-lang</artifactId>
+		    <version>2.6</version>
+		</dependency>
 		
 	</dependencies>	
 	<!-- Use the  Manifest configuration if you want to build Runnable jar from the build -->
@@ -51,6 +57,16 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+				<source>${jdk.version}</source>
+				<target>${jdk.version}</target>
+				<archive>
+		            <manifest>
+		              <addClasspath>true</addClasspath>
+		              <mainClass>com.stl.surveyconsole.main.SurveyEngine</mainClass>
+		            </manifest>
+          		</archive>
+		</configuration>
         <!-- <configuration>
           <archive>
             <manifest>

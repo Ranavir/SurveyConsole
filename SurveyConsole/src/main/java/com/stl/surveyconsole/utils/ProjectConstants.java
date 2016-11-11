@@ -45,9 +45,36 @@ public class ProjectConstants {
 	
 	
 	//Project Rule Engine Queries
-	//Date: 26042016
-	public static final String QUERY_GET_RULE_MASTER = "SELECT MODULE,SUBMODULE,MAX_OCCUR FROM RULE_MASTER WHERE RULE_CODE = ?" ;
-	public static final String QUERY_GET_RULE_DETAILS_LIST = "SELECT RULE_SEQ_NO,QUERY,COMPLEXITY FROM RULE_DETAILS WHERE RULE_CODE = ? AND RULE_SEQ_NO IN ( ? )" ;
-	public static final String QUERY_GET_RULE_DETAILS = "SELECT RULE_SEQ_NO,QUERY,COMPLEXITY FROM RULE_DETAILS WHERE RULE_CODE = ? AND RULE_SEQ_NO = ?" ;
+	//Date: 02-Nov-2016
+	public static final String QUERY_AUTH_BY_UID = "SELECT * FROM PUBLIC.OSS_USER_INFO WHERE USER_ID = ? AND PASSWORD = ? AND OTP_VALIDATION = TRUE" ;
+	public static final String QUERY_AUTH_BY_EMAIL = "SELECT * FROM PUBLIC.OSS_USER_INFO WHERE EMAIL = ? AND PASSWORD = ? AND OTP_VALIDATION = TRUE" ;
+	
+	//Date: 04-Nov-2016
+	public static final String QUERY_PANEL_SURVEY_MAP = "select lus.userid,lus.surveyid as surveyid,lus.flag as completed_flag,lus.timings as time_to_complete,"+
+	"lsl.surveyls_title,lsl.surveyls_description,lsl.surveyls_welcometext,lsl.surveyls_endtext,lsl.surveyls_dateformat,"+
+	"ls.active,ls.expires,ls.startdate,ls.format,ls.savetimings,ls.language,ls.datestamp,ls.allowsave,ls.allowprev,ls.datecreated,ls.showxquestions,ls.showqnumcode,ls.showwelcome,ls.showprogress "+
+	"from lime_surveys ls,stl_user_survey lus,lime_surveys_languagesettings lsl where ls.sid = lus.surveyid and lus.surveyid = lsl.surveyls_survey_id "+
+	"and ls.active = 'Y' and lus.userid = ? order by ls.datecreated desc" ;
+	public static final String QUERY_CREATE_USERID_COLUMN = "ALTER TABLE %s ADD COLUMN userid integer" ;
+	public static final String QUERY_CHECK_USER_SURVEY_MAPPING= "select * from stl_user_survey where surveyid = %s and userid = %s" ;
+	public static final String QUERY_CHECK_USER_EXTRA= "select * from stl_user_survey_details where userid = %s" ;
+	public static final String QUERY_INSERT_USER_SURVEY_MAPPING= "insert into stl_user_survey (id,surveyid,userid) values(%s,%s,%s)" ;
+	public static final String QUERY_INSERT_USER_EXTRA= "insert into stl_user_survey_details (id,userid) values(%s,%s)" ;
+	
+	//Date: 05-Nov-2016
+	public static final String QUERY_GET_LIME_GROUPS = "select * from lime_groups where sid = %s order by gid asc,group_order asc" ;
+	public static final String QUERY_GET_LIME_QUESTIONS = "select * from lime_questions where sid = %s order by qid asc,gid asc" ;
+	public static final String QUERY_GET_LIME_QUEST_ATTRS = "select * from lime_question_attributes where qid in(select qid from lime_questions where sid = %s) order by qaid asc,qid asc" ;
+	public static final String QUERY_GET_LIME_ANSWERS = "select * from lime_answers where qid in (select qid from lime_questions where sid = %s) order by qid asc,sortorder asc" ;
+	public static final String QUERY_GET_LIME_CONDITIONS = "select * from lime_conditions where qid in (select qid from lime_questions where sid = %s) order by cid asc,qid asc" ;
+	public static final String QUERY_GET_LANGUAGE_SETTINGS = "select * from lime_surveys_languagesettings where surveyls_survey_id = %s" ;		
+	
+	//Date: 08-Nov-2016
+	public static final String QUERY_GET_SURVEY_RESPONSES = "select * from lime_survey_%s where userid = %s" ;
+	
+	//Date: 10-11-2016
+	public static final String QUERY_UPDATE_COMPLETE_STATUS = "UPDATE stl_user_survey SET flag='Y'  WHERE surveyid = %s and userid = %s" ;
+	public static final String QUERY_UPDATE_COMPLETENESS_COUNT = "update stl_user_survey_details set completesurveycount = COALESCE(completesurveycount,0) + 1,incompletesurveycount = case when incompletesurveycount = null then null else incompletesurveycount - 1 END where userid = %s" ;
+	public static final String QUERY_RAISE_INCOMPLETE_COUNT = "update stl_user_survey_details set incompletesurveycount = COALESCE(incompletesurveycount,0) + 1 where userid = %s" ; 
 	
 }
