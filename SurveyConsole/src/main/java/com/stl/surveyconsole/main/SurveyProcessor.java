@@ -77,9 +77,9 @@ public class SurveyProcessor {
 	HashMap<String,String> hmSurveyUpdatableAnswer ;//Store the Current Response by the user
 	
 	
-	static ArrayList<String> alResponseTblColList ;//From Database
-	static ArrayList<String> alResponseTblAllColList ;//From Database
-	static ArrayList<String> alResponseTimingTblColList ;//From Database
+	ArrayList<String> alResponseTblColList ;//From Database
+	ArrayList<String> alResponseTblAllColList ;//From Database
+	ArrayList<String> alResponseTimingTblColList ;//From Database
 	
 	public static SurveyProcessor getInstance(){
 		if(singletonSurveyProcessor == null){
@@ -158,10 +158,7 @@ public class SurveyProcessor {
 				}
 			}
 		}).size() ;
-		//get response of that survey from dynamic table
-		hmSurveyAvailableAnswer = processorService.getSurveyResponse(survey.getSurveyid(),user_id,alResponseTblColList,rqHm);
-		//Initialize user answer map to new one
-		hmSurveyUpdatableAnswer = new HashMap<String, String>() ;
+		
 		
 		logger.debug("\nlistLimeGrpModels :: "+listLimeGrpModels);
 		logger.debug("\nlisLimeQuestModels :: "+listLimeQuestModels);
@@ -174,6 +171,11 @@ public class SurveyProcessor {
 		alResponseTblColList = processorService.getColumnListByTableName("lime_survey_"+survey.getSurveyid(),survey.getSurveyid()+"");//pattern you can give as sid(survey.getSurveyid()) to get dynamic columns
 		logger.debug("\nalResponseTblColList :: "+alResponseTblColList);
 		
+		//get response of that survey from dynamic table
+		hmSurveyAvailableAnswer = processorService.getSurveyResponse(survey.getSurveyid(),user_id,alResponseTblAllColList,rqHm);
+		//Initialize user answer map to new one for begin
+		hmSurveyUpdatableAnswer = new HashMap<String, String>() ;
+				
 		//show Welcome page if checked
 		if(StringUtils.equalsIgnoreCase(survey.getShowwelcome(), "Y")){
 			showWelcomePage(survey);
@@ -182,9 +184,11 @@ public class SurveyProcessor {
 		//Check format of survey A(All questions)/G(Group by Group)/S(Single question)
 		//only Single question format is supported in console
 		/**********************************************************************************/
-		
+		if(!hmSurveyAvailableAnswer.isEmpty()){
+			lastpage = (!StringUtils.isEmpty(hmSurveyAvailableAnswer.get("lastpage")) ? Integer.parseInt(hmSurveyAvailableAnswer.get("lastpage")): 0);
+		}
 		//Check allowsave flag Y in survey details and Some response already received
-		if(StringUtils.equalsIgnoreCase(survey.getAllowsave(), "Y") && !hmSurveyAvailableAnswer.isEmpty()){
+		if(StringUtils.equalsIgnoreCase(survey.getAllowsave(), "Y") && lastpage != 0){
 			//Resume survey
 						
 			//Get the group id and question id to start
@@ -241,6 +245,7 @@ public class SurveyProcessor {
 						}
 						//Save current Qid
 						iCurrentQid = currentQuestModel.getQid();
+						
 						logger.debug("Current Question id = "+iCurrentQid);
 						//Get condition list for the current question
 						List<LimeConditionsModel> listCurrentQuestConds = MyGenericUtils.filterList(listLimeCondModels,new QuestionConditionPredicate(currentQuestModel.getQid()));
@@ -252,6 +257,9 @@ public class SurveyProcessor {
 							if(!condFlag){//Condition not satisfied so skip this question
 								continue;
 							}
+						}else{
+							//increase last page by 1 due to no condition
+							lastpage++;
 						}
 						//Process question if no conditions available OR condition satisfied for this question
 						processQuest(survey,currentQuestModel);//Need to be implemented
@@ -282,6 +290,7 @@ public class SurveyProcessor {
 		logger.info("ENTRY---> methodname : "+methodname);
 		boolean flag = false ;
 		//Check condition according to already given answers
+		//Evaluate the available conditions
 		
 		
 		logger.info("EXIT---> methodname : "+methodname);
@@ -314,16 +323,16 @@ public class SurveyProcessor {
 			}
 			//Update last page to current question order
 			if(alResponseTblAllColList.contains("lastpage"))
-				hmSurveyUpdatableAnswer.put("lastpage",iCurrentQOrder+"");//lastpage
+				hmSurveyUpdatableAnswer.put("lastpage",lastpage+"");//lastpage
 			//Check if last question answered
-			if(iCurrentQOrder == iTotalQuestCount)
+			if(lastpage == iTotalQuestCount)
 				hmSurveyUpdatableAnswer.put("submitdate",Utils.getDate("yyyy-MM-dd HH:mm:ss"));
 			
 			//Save Response
 			saveResponse(survey.getSurveyid()+"",survey.getUserid(),hmSurveyUpdatableAnswer,alResponseTblColList);
 			
 			//If Survey answer completed then update status of user
-			if(iCurrentQOrder == iTotalQuestCount){
+			if(lastpage == iTotalQuestCount){
 				//Update Survey Status to complete
 				boolean flag = processorService.updateSurveyStatus(survey.getSurveyid(),survey.getUserid(),"complete");
 				logger.debug("updateSurveyStatus--->"+flag);
