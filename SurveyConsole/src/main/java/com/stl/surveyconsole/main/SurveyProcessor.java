@@ -16,8 +16,8 @@
  */
 package com.stl.surveyconsole.main;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -25,9 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
+import com.stl.surveyconsole.helper.ExpressionManager;
 import com.stl.surveyconsole.helper.MyGenericUtils;
 import com.stl.surveyconsole.helper.Predicate;
 import com.stl.surveyconsole.helper.QuestionConditionPredicate;
@@ -41,6 +43,7 @@ import com.stl.surveyconsole.service.SurveyProcessService;
 import com.stl.surveyconsole.serviceImpl.SurveyProcessServiceImpl;
 import com.stl.surveyconsole.utils.Keyin;
 import com.stl.surveyconsole.utils.Utils;
+import com.stl.surveyconsole.vo.LimeConditionVO;
 import com.stl.surveyconsole.vo.PanelSurveyVO;
 
 /**************************************************************
@@ -61,7 +64,8 @@ public class SurveyProcessor {
 	int iCurrentQid ;//This integer will store the survey current question id
 	int iCurrentQOrder ;//This integer will store the current question order
 	int iTotalQuestCount ; //This integer will store the total question count (max quest order)
-	int lastpage ;//This integer will store the last question completed
+	int lastpage ;//This integer will store the last question completed during iteration
+	
 	String submitdate ;//This will save the last answered timestamp
 	
 	List<LimeQuestionsModel> listCurrentGroupMainQuests ;//Stores the Main question lists in current Question Group
@@ -72,6 +76,8 @@ public class SurveyProcessor {
 	List<LimeQuestionAttributesModel> listLimeQuestAttrModels ;//From Database
 	List<LimeAnswersModel> listLimeAnsModels ;//From Database
 	List<LimeConditionsModel> listLimeCondModels ;//From Database
+	List<LimeConditionVO> listLimeCondVOs ;//From Database
+	
 	HashMap<String,Object> hmSurveyDetails ;
 	HashMap<String,String> hmSurveyAvailableAnswer ;//Store the Available Answer for the Survey
 	HashMap<String,String> hmSurveyUpdatableAnswer ;//Store the Current Response by the user
@@ -122,6 +128,8 @@ public class SurveyProcessor {
 		listLimeQuestAttrModels = new ArrayList<LimeQuestionAttributesModel>();//From Database
 		listLimeAnsModels = new ArrayList<LimeAnswersModel>();//From Database
 		listLimeCondModels = new ArrayList<LimeConditionsModel>();//From Database
+		listLimeCondVOs = new ArrayList<LimeConditionVO>();//From Database
+		
 		hmSurveyDetails = null;
 		hmSurveyAvailableAnswer = null;//Store the Available Answer for the Survey
 		hmSurveyUpdatableAnswer = null;//Store the Current Response by the user
@@ -148,6 +156,8 @@ public class SurveyProcessor {
 		listLimeQuestAttrModels = (List<LimeQuestionAttributesModel>)hmSurveyDetails.get("listLimeQuestAttrModels");
 		listLimeAnsModels = (List<LimeAnswersModel>)hmSurveyDetails.get("listLimeAnsModels");
 		listLimeCondModels = (List<LimeConditionsModel>)hmSurveyDetails.get("listLimeCondModels");
+		listLimeCondVOs = (List<LimeConditionVO>)hmSurveyDetails.get("listLimeCondVOs");
+		
 		//Get total no of questions in this survey and display to user b4 start of survey
 		iTotalQuestCount = MyGenericUtils.filterList(listLimeQuestModels, new Predicate<LimeQuestionsModel>() {
 			public boolean test(LimeQuestionsModel qModel){
@@ -165,6 +175,7 @@ public class SurveyProcessor {
 		logger.debug("\nlimeQuestAttrModels :: "+listLimeQuestAttrModels);
 		logger.debug("\nlistLimeAnsModels :: "+listLimeAnsModels);
 		logger.debug("\nlistLimeCondModels :: "+listLimeCondModels);
+		logger.debug("\nlistLimeCondVOs :: "+listLimeCondVOs);
 		
 		//Get the Dynamic response table column list
 		alResponseTblAllColList = processorService.getColumnListByTableName("lime_survey_"+survey.getSurveyid(),"");//pattern you can give as sid(survey.getSurveyid()) to get dynamic columns
@@ -248,22 +259,50 @@ public class SurveyProcessor {
 						
 						logger.debug("Current Question id = "+iCurrentQid);
 						//Get condition list for the current question
-						List<LimeConditionsModel> listCurrentQuestConds = MyGenericUtils.filterList(listLimeCondModels,new QuestionConditionPredicate(currentQuestModel.getQid()));
+						List<LimeConditionVO> listCurrentQuestCondVOs = MyGenericUtils.filterList(listLimeCondVOs,new QuestionConditionPredicate(currentQuestModel.getQid()));
 						
-						if(!listCurrentQuestConds.isEmpty()){
-							logger.debug("\nCurrent Question listCurrentQuestConds :: "+listCurrentQuestConds);
-							//Check conditions
-							boolean condFlag = validateQuestConditions(currentQuestModel,listCurrentQuestConds);//Need to be implemented
+						if(!listCurrentQuestCondVOs.isEmpty()){
+							logger.debug("\nCurrent Question listCurrentQuestCondVOs :: "+listCurrentQuestCondVOs);
+							//Check conditions based on relevance relation and existing conditions
+							boolean condFlag = validateQuestConditions(currentQuestModel.getRelevance(),listCurrentQuestCondVOs);//Need to be implemented
 							if(!condFlag){//Condition not satisfied so skip this question
+								//increase last page by 1 due to skip of this question
+								lastpage++;
 								continue;
 							}
-						}else{
-							//increase last page by 1 due to no condition
-							lastpage++;
 						}
+						//increase last page by 1 due to execution of this question
+						lastpage++;
+						
+						/*
+						 * 1 - Before going to process any question it is to be checked whether allow saving is
+						 * active or not 
+						 * 2 - If it is active then check what is the lastpage available in answer, whether matching 
+						 */
+						
+						
 						//Process question if no conditions available OR condition satisfied for this question
 						processQuest(survey,currentQuestModel);//Need to be implemented
 					}//end for selecting a question
+					
+					//Final submit of survey should be done
+					//If Survey answer completed then update status of user
+					if(lastpage == iTotalQuestCount){
+						//Update Survey Status to complete
+						boolean flag = processorService.updateSurveyStatus(survey.getSurveyid(),survey.getUserid(),"complete");
+						logger.debug("updateSurveyStatus--->"+flag);
+						
+						//Submitting survey i.e updating lastpage and submitdate
+						HashMap<String,String> hmSubmit = new HashMap<>();
+						hmSubmit.put("lastpage",lastpage+"");//lastpage
+						hmSubmit.put("submitdate",Utils.getDate("yyyy-MM-dd HH:mm:ss"));
+						//Save Response
+						saveResponse(survey.getSurveyid()+"",survey.getUserid(),hmSubmit,new ArrayList<String>());//send blank list
+						
+						//Show end message
+						System.out.println("\n"+survey.getSurveyls_endtext()+"\n");
+					}
+					
 				}//end if Randomization check
 				
 				
@@ -281,17 +320,32 @@ public class SurveyProcessor {
 	/*********************************************************************
 	 * This method takes Question and its Condition list and validates 
 	 * the question based on it 
-	 * @param currentQuestModel
+	 * 1 - Get the Relevance Relation
+	 * 2 - validate condition using relevance equation,existing conditions
+	 * 	   and Available answers(first from catch then from previous answers)
+	 * 
+	 * @param strRelevance
 	 * @param listCurrentQuestConds
 	 * @return boolean
 	 **********************************************************************/
-	private boolean validateQuestConditions(LimeQuestionsModel currentQuestModel,List<LimeConditionsModel> listCurrentQuestConds) {
+	private boolean validateQuestConditions(String  strRelevance,List<LimeConditionVO> listConditionVO) {
 		String methodname = "validateQuestConditions" ;
 		logger.info("ENTRY---> methodname : "+methodname);
 		boolean flag = false ;
 		//Check condition according to already given answers
-		//Evaluate the available conditions
 		
+		
+		
+				
+		//Evaluate using available Maps and Expression Manager
+		/*
+		 * This method takes the map containing values and also
+		 * takes the Conditional VO Result list to 
+		 * store boolean result in it, Relevance expression string and
+		 *question list having the qid = cqid in conditions for quest type
+		 * return the value of the expression 
+		 */
+		flag = ExpressionManager.validateCondition(strRelevance,listConditionVO,hmSurveyUpdatableAnswer,hmSurveyAvailableAnswer);
 		
 		logger.info("EXIT---> methodname : "+methodname);
 		return flag;
@@ -330,14 +384,6 @@ public class SurveyProcessor {
 			
 			//Save Response
 			saveResponse(survey.getSurveyid()+"",survey.getUserid(),hmSurveyUpdatableAnswer,alResponseTblColList);
-			
-			//If Survey answer completed then update status of user
-			if(lastpage == iTotalQuestCount){
-				//Update Survey Status to complete
-				boolean flag = processorService.updateSurveyStatus(survey.getSurveyid(),survey.getUserid(),"complete");
-				logger.debug("updateSurveyStatus--->"+flag);
-				System.out.println("\n"+survey.getSurveyls_endtext()+"\n");
-			}
 			
 			
 		}

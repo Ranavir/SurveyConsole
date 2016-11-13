@@ -77,4 +77,7 @@ public class ProjectConstants {
 	public static final String QUERY_UPDATE_COMPLETENESS_COUNT = "update stl_user_survey_details set completesurveycount = COALESCE(completesurveycount,0) + 1,incompletesurveycount = case when incompletesurveycount = null then null else incompletesurveycount - 1 END where userid = %s" ;
 	public static final String QUERY_RAISE_INCOMPLETE_COUNT = "update stl_user_survey_details set incompletesurveycount = COALESCE(incompletesurveycount,0) + 1 where userid = %s" ; 
 	
+	//Date: 12-Nov-2016
+	public static final String QUERY_GET_LIME_COND_DETAILS = "select lc.cid,lc.qid,lc.cqid,lc.cfieldname,lc.method,lc.value,lc.scenario,lq.type from lime_questions lq,(select * from lime_conditions where qid in "+
+															"(select qid from lime_questions where sid = %s)) as lc where lc.cqid = lq.qid order by lc.cid asc,lc.qid asc" ;
 }

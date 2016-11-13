@@ -208,7 +208,9 @@ public class SurveyEngine {
 				System.out.println("\t"+"( "+ (++i) +" ) "+psvo.getSurveyid()+" "+psvo.getSurveyls_title());
 			}
 			//Ask panelist for choosing a survey
-			iOption = Keyin.inInt("\nSelect the serial no to start :: ");
+			do{
+				iOption = Keyin.inInt("\nSelect the serial no to start :: ");
+			}while(iOption <= 0 || iOption > listPanelSurvey.size());
 			//Get the survey from list by id
 			
 			//Call Survey Process with surveyid and userid

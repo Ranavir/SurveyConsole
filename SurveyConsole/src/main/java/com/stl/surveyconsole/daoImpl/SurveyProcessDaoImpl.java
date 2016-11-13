@@ -22,6 +22,7 @@ import com.stl.surveyconsole.model.LimeSurveyLanguagesettings;
 import com.stl.surveyconsole.utils.DaoFactory;
 import com.stl.surveyconsole.utils.ProjectConstants;
 import com.stl.surveyconsole.utils.Utils;
+import com.stl.surveyconsole.vo.LimeConditionVO;
 /**
  * This is the Dao Implementation class for all the Survey processes
  * and related facts
@@ -144,11 +145,14 @@ public class SurveyProcessDaoImpl implements SurveyProcessDao{
 		List<LimeQuestionAttributesModel> listLimeQuestAttrModels = new ArrayList<LimeQuestionAttributesModel>();
 		List<LimeAnswersModel> listLimeAnsModels = new ArrayList<LimeAnswersModel>();
 		List<LimeConditionsModel> listLimeCondModels = new ArrayList<LimeConditionsModel>();
+		List<LimeConditionVO> listLimeCondVOs = new ArrayList<LimeConditionVO>();
+		
 		LimeGroupsModel lgModel;
 		LimeQuestionsModel lqModel;
 		LimeQuestionAttributesModel lqAttrModel;
 		LimeAnswersModel laModel;
 		LimeConditionsModel lcModel;
+		LimeConditionVO lcVO;
 		
 		String queryGetLanguageSettings = String.format(ProjectConstants.QUERY_GET_LANGUAGE_SETTINGS,surveyid) ;//select * from lime_surveys_languagesettings where surveyls_survey_id = 111238
 		String queryGetLimeGroups = String.format(ProjectConstants.QUERY_GET_LIME_GROUPS,surveyid) ;//select * from lime_groups where sid = 111238 order by gid asc,group_order asc
@@ -156,6 +160,9 @@ public class SurveyProcessDaoImpl implements SurveyProcessDao{
 		String queryGetLimeQuestArrs = String.format(ProjectConstants.QUERY_GET_LIME_QUEST_ATTRS,surveyid) ;//select * from lime_question_attributes where qid in(select qid from lime_questions where sid = 111238) order by qaid asc,qid asc
 		String queryGetLimeAnswers = String.format(ProjectConstants.QUERY_GET_LIME_ANSWERS,surveyid) ;//select * from lime_answers where qid in (select qid from lime_questions where sid = 111238) order by qid asc,sortorder asc
 		String queryGetLimeConds = String.format(ProjectConstants.QUERY_GET_LIME_CONDITIONS,surveyid) ;//select * from lime_conditions where qid in (select qid from lime_questions where sid = 111238) order by cid asc,qid asc
+		//select lc.cid,lc.qid,lc.cqid,lc.cfieldname,lc.method,lc.value,lc.scenario,lq.type from lime_questions lq,(select * from lime_conditions where qid in 
+		//(select qid from lime_questions where sid = 111238)) as lc where lc.cqid = lq.qid order by lc.cid asc,lc.qid asc
+		String queryGetLimeCondVos = String.format(ProjectConstants.QUERY_GET_LIME_COND_DETAILS,surveyid) ;
 		
 		Connection con = null;
 		Statement stmt = null ;
@@ -292,6 +299,27 @@ public class SurveyProcessDaoImpl implements SurveyProcessDao{
 			rs.close();
 			stmt.close();
 			
+			//Step 6 - QUERY_GET_LIME_COND_DETAILS
+			stmt = con.createStatement();
+			rs = stmt.executeQuery(queryGetLimeCondVos);
+			logger.info("query:"+queryGetLimeCondVos);
+			while(rs.next()){
+				lcVO = new LimeConditionVO();
+				
+				lcVO.setCid(rs.getInt(1));
+				lcVO.setQid(rs.getInt(2));
+				lcVO.setCqid(rs.getInt(3));
+				lcVO.setCfieldname(rs.getString(4));
+				lcVO.setMethod(rs.getString(5));
+				lcVO.setValue(rs.getString(6));
+				lcVO.setScenario(rs.getInt(7));
+				lcVO.setCondQuestType(rs.getString(8));
+				
+				listLimeCondVOs.add(lcVO);
+			}
+			rs.close();
+			stmt.close();
+			
 			//Add the details to HashMap 
 			hmSurveyDetails.put("surveyLanguageSettings", surveyLanguageSettings);
 			hmSurveyDetails.put("listLimeGrpModels", listLimeGrpModels);
@@ -299,7 +327,7 @@ public class SurveyProcessDaoImpl implements SurveyProcessDao{
 			hmSurveyDetails.put("listLimeQuestAttrModels", listLimeQuestAttrModels);
 			hmSurveyDetails.put("listLimeAnsModels", listLimeAnsModels);
 			hmSurveyDetails.put("listLimeCondModels", listLimeCondModels);
-			
+			hmSurveyDetails.put("listLimeCondVOs", listLimeCondVOs);
 			
 		} catch (Exception e) {
 			e.printStackTrace();

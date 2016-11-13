@@ -13,14 +13,7 @@ public class LimeConditionVO implements Serializable{
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	/*cid serial NOT NULL,
-	  qid integer NOT NULL DEFAULT 0,
-	  cqid integer NOT NULL DEFAULT 0,
-	  cfieldname character varying(50) NOT NULL DEFAULT ''::character varying,
-	  method character varying(5) NOT NULL DEFAULT ''::character varying,
-	  value character varying(255) NOT NULL DEFAULT ''::character varying,
-	  scenario integer NOT NULL DEFAULT 1,
-	  CONSTRAINT lime_conditions_pkey PRIMARY KEY (cid)*/
+
 	private int cid;
 	private int qid;
 	private int cqid;
@@ -28,17 +21,13 @@ public class LimeConditionVO implements Serializable{
 	private String method;
 	private String value;
 	private int scenario;
-	private boolean result;//This will store the evaluated value from this condition
+	/*This will store the evaluated value from this condition*/
+	private boolean result;//
+	/*This will hold the question type of the conditioned question or cqid(i.e on which question data this condition will be applied)*/
+	private String condQuestType;
 	
 	
 	
-	@Override
-	public String toString() {
-		return "LimeConditionVO [cid=" + cid + ", qid=" + qid + ", cqid="
-				+ cqid + ", cfieldname=" + cfieldname + ", method=" + method
-				+ ", value=" + value + ", scenario=" + scenario + ", result="
-				+ result + "]";
-	}
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -58,6 +47,19 @@ public class LimeConditionVO implements Serializable{
 		if (cid != other.cid)
 			return false;
 		return true;
+	}
+	@Override
+	public String toString() {
+		return "LimeConditionVO [cid=" + cid + ", qid=" + qid + ", cqid="
+				+ cqid + ", cfieldname=" + cfieldname + ", method=" + method
+				+ ", value=" + value + ", scenario=" + scenario + ", result="
+				+ result + ", condQuestType=" + condQuestType + "]";
+	}
+	public String getCondQuestType() {
+		return condQuestType;
+	}
+	public void setCondQuestType(String condQuestType) {
+		this.condQuestType = condQuestType;
 	}
 	public boolean isResult() {
 		return result;
