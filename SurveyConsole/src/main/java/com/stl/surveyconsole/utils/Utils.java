@@ -78,7 +78,7 @@ public class Utils {
 		String dateNow = formatter.format(currDate.getTime());
 		return dateNow;
 	}
-
+	
 	public static String convertTimestampToString(String timestamp) {
 		String result = "";
 		SimpleDateFormat inputFormat = new SimpleDateFormat(
@@ -113,7 +113,14 @@ public class Utils {
 		}
 		return format;
 	}//end getGlobalDateFormat
-
+	/**
+	 * This utility method validates a date format with
+	 * regards to a particular code
+	 * 
+	 * @param value
+	 * @param iCode
+	 * @return
+	 */
 	public static boolean validateDateFormat(String value,int iCode) {
 		boolean flag = false;
 		switch(iCode){
@@ -130,4 +137,16 @@ public class Utils {
 		}
 		return flag;
 	}//end validateDateFormat
+	/**
+	 * This utility method takes current value and total value 
+	 * to return approximate percentage value
+	 * 
+	 * @param current
+	 * @param total
+	 * @return int
+	 */
+	public static int getPercentage(double current,double total){
+		Double p = (current/total) * 100 ;
+		return p.intValue();
+	}//end getPercentage
 }// end class

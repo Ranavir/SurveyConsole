@@ -65,7 +65,7 @@ public class SurveyProcessor {
 	int iCurrentQOrder ;//This integer will store the current question order
 	int iTotalQuestCount ; //This integer will store the total question count (max quest order)
 	int lastpage ;//This integer will store the last question completed during iteration
-	
+	int iLastPageAvailable ;//This integer will store if any available last page for resume
 	String submitdate ;//This will save the last answered timestamp
 	
 	List<LimeQuestionsModel> listCurrentGroupMainQuests ;//Stores the Main question lists in current Question Group
@@ -186,131 +186,152 @@ public class SurveyProcessor {
 		hmSurveyAvailableAnswer = processorService.getSurveyResponse(survey.getSurveyid(),user_id,alResponseTblAllColList,rqHm);
 		//Initialize user answer map to new one for begin
 		hmSurveyUpdatableAnswer = new HashMap<String, String>() ;
-				
-		//show Welcome page if checked
-		if(StringUtils.equalsIgnoreCase(survey.getShowwelcome(), "Y")){
-			showWelcomePage(survey);
+		
+		//Get the available last page if any 
+		if(!hmSurveyAvailableAnswer.isEmpty()){
+			iLastPageAvailable = (!StringUtils.isEmpty(hmSurveyAvailableAnswer.get("lastpage")) ? Integer.parseInt(hmSurveyAvailableAnswer.get("lastpage")): 0);
 		}
+		/*
+		 * Show Welcome page 
+		 * 
+		 * 1 - If resume is not active and show welcome flag is Y
+		 * 2 - If resume is active and iLastPageAvailable == 0 and show welcome flag is Y
+		 */
+		if(StringUtils.equalsIgnoreCase(survey.getShowwelcome(), "Y")){
+			if(StringUtils.equalsIgnoreCase(survey.getAllowsave(), "Y")){
+				if(iLastPageAvailable == 0)
+					showWelcomePage(survey);
+			}else{
+				showWelcomePage(survey);
+			}
+		}//end if showWelcomePage
+		
 		/**********************************************************************************/
 		//Check format of survey A(All questions)/G(Group by Group)/S(Single question)
 		//only Single question format is supported in console
 		/**********************************************************************************/
-		if(!hmSurveyAvailableAnswer.isEmpty()){
-			lastpage = (!StringUtils.isEmpty(hmSurveyAvailableAnswer.get("lastpage")) ? Integer.parseInt(hmSurveyAvailableAnswer.get("lastpage")): 0);
-		}
-		//Check allowsave flag Y in survey details and Some response already received
-		if(StringUtils.equalsIgnoreCase(survey.getAllowsave(), "Y") && lastpage != 0){
-			//Resume survey
-						
-			//Get the group id and question id to start
+		
 			
-		}else{//Check allowsave flag N
-			//Start fresh survey
+		//Get the group id and question id to start
+		for(LimeGroupsModel lgm : listLimeGrpModels){
+			iCurrentGid = lgm.getGid();
+			logger.debug("Current GROUP ID :: "+iCurrentGid);
+			listCurrentGroupMainQuests = MyGenericUtils.filterList(listLimeQuestModels, new Predicate<LimeQuestionsModel>() {
+				public boolean test(LimeQuestionsModel qModel){
+					if(qModel.getGid() == iCurrentGid && qModel.getParent_qid() == 0){
+						return true;
+					}else{
+						return false;
+					}
+				}
+			});
+			//listCurrentGroupQuests = MyGenericUtils.filterList(listLimeQuestModels, new GroupQuestionPredicate(iCurrentGid));
 			
+			//Find maximum orderid for the questions where pqid = 0
+			int iGMaxQuestOrdId = 0 ;
+			for(LimeQuestionsModel qModel : listCurrentGroupMainQuests){
+				if(qModel.getParent_qid() == 0 && qModel.getQuestion_order() > iGMaxQuestOrdId){
+					iGMaxQuestOrdId = qModel.getQuestion_order();
+				}
+			}//end for getting max question in a group by order id in a group
 			
-			//Get the group id and question id to start
-			for(LimeGroupsModel lgm : listLimeGrpModels){
-				iCurrentGid = lgm.getGid();
-				logger.debug("Current GROUP ID :: "+iCurrentGid);
-				listCurrentGroupMainQuests = MyGenericUtils.filterList(listLimeQuestModels, new Predicate<LimeQuestionsModel>() {
-					public boolean test(LimeQuestionsModel qModel){
-						if(qModel.getGid() == iCurrentGid && qModel.getParent_qid() == 0){
-							return true;
+			//Check GroupRandomization flag and Shuffle the Group questions
+			if(StringUtils.equalsIgnoreCase(lgm.getRandomization_group(),"Y")){//No condition check 
+				Collections.shuffle(listCurrentGroupMainQuests);//Shuffle the main question list and select sequentially
+				//Select the random question from the list
+				for(LimeQuestionsModel currentQuestModel : listCurrentGroupMainQuests){
+					processQuest(survey,currentQuestModel);
+				}
+			}else{//No Randomization just do according to rule (Conditions can be checked)
+				//Select the question by incrementing order id 
+				for(int i = 0 ; i <= iGMaxQuestOrdId ; i++){
+					iCurrentQOrder = i ;//Save current Question Order 
+					LimeQuestionsModel currentQuestModel = MyGenericUtils.filterUnique(listCurrentGroupMainQuests,new Predicate<LimeQuestionsModel>() {
+						public boolean test(LimeQuestionsModel qModel){
+							if(qModel.getQuestion_order() == iCurrentQOrder){
+								return true;
+							}else{
+								return false;
+							}
+						}
+					});
+					if(null == currentQuestModel){//Check question existence with iCurrentQOrder question order
+						continue ;//Check for next question order
+					}
+					//Save current Qid
+					iCurrentQid = currentQuestModel.getQid();
+					
+					logger.debug("Current Question id = "+iCurrentQid);
+					//Get condition list for the current question
+					List<LimeConditionVO> listCurrentQuestCondVOs = MyGenericUtils.filterList(listLimeCondVOs,new QuestionConditionPredicate(currentQuestModel.getQid()));
+					
+					if(!listCurrentQuestCondVOs.isEmpty()){
+						logger.debug("\nCurrent Question listCurrentQuestCondVOs :: "+listCurrentQuestCondVOs);
+						//Check conditions based on relevance relation and existing conditions
+						boolean condFlag = validateQuestConditions(currentQuestModel.getRelevance(),listCurrentQuestCondVOs);//Need to be implemented
+						if(!condFlag){//Condition not satisfied so skip this question
+							//increase last page by 1 due to skip of this question
+							lastpage++;
+							continue;
+						}
+					}
+					//increase last page by 1 due to execution of this question
+					lastpage++;
+					
+					/*
+					 * Here this block helps in iterating over questions upto it is matched to the last question
+					 * answer given by user 
+					 * 
+					 * 1 - Before going to process any question it is to be checked whether allow saving is
+					 * active or not 
+					 * 2 - If it is active then check what is the iLastPageAvailable available in answer, whether < 
+					 * 	   current lastpage value if it is then go for current question answer session or else skip and 
+					 * 	   go to next question
+					 * 3 - If not active then no need to check for last page matching start asking question to user from begining
+					 */
+					if(StringUtils.equalsIgnoreCase(survey.getAllowsave(), "Y") && iLastPageAvailable > 0){
+						//Resume survey if laspage > iLastPageAvailable
+						if(lastpage > iLastPageAvailable){
+							//Process question if no conditions available OR condition satisfied for this question
+							processQuest(survey,currentQuestModel);//Need to be implemented
 						}else{
-							return false;
-						}
-					}
-				});
-				//listCurrentGroupQuests = MyGenericUtils.filterList(listLimeQuestModels, new GroupQuestionPredicate(iCurrentGid));
-				
-				//Find maximum orderid for the questions where pqid = 0
-				int iGMaxQuestOrdId = 0 ;
-				for(LimeQuestionsModel qModel : listCurrentGroupMainQuests){
-					if(qModel.getParent_qid() == 0 && qModel.getQuestion_order() > iGMaxQuestOrdId){
-						iGMaxQuestOrdId = qModel.getQuestion_order();
-					}
-				}//end for getting max question in a group by order id in a group
-				
-				//Check GroupRandomization flag and Shuffle the Group questions
-				if(StringUtils.equalsIgnoreCase(lgm.getRandomization_group(),"Y")){//No condition check 
-					Collections.shuffle(listCurrentGroupMainQuests);//Shuffle the main question list and select sequentially
-					//Select the random question from the list
-					for(LimeQuestionsModel currentQuestModel : listCurrentGroupMainQuests){
-						processQuest(survey,currentQuestModel);
-					}
-				}else{//No Randomization just do according to rule (Conditions can be checked)
-					//Select the question by incrementing order id 
-					for(int i = 0 ; i <= iGMaxQuestOrdId ; i++){
-						iCurrentQOrder = i ;//Save current Question Order 
-						LimeQuestionsModel currentQuestModel = MyGenericUtils.filterUnique(listCurrentGroupMainQuests,new Predicate<LimeQuestionsModel>() {
-							public boolean test(LimeQuestionsModel qModel){
-								if(qModel.getQuestion_order() == iCurrentQOrder){
-									return true;
-								}else{
-									return false;
-								}
-							}
-						});
-						if(null == currentQuestModel){//Check question existence with iCurrentQOrder question order
-							continue ;//Check for next question order
-						}
-						//Save current Qid
-						iCurrentQid = currentQuestModel.getQid();
-						
-						logger.debug("Current Question id = "+iCurrentQid);
-						//Get condition list for the current question
-						List<LimeConditionVO> listCurrentQuestCondVOs = MyGenericUtils.filterList(listLimeCondVOs,new QuestionConditionPredicate(currentQuestModel.getQid()));
-						
-						if(!listCurrentQuestCondVOs.isEmpty()){
-							logger.debug("\nCurrent Question listCurrentQuestCondVOs :: "+listCurrentQuestCondVOs);
-							//Check conditions based on relevance relation and existing conditions
-							boolean condFlag = validateQuestConditions(currentQuestModel.getRelevance(),listCurrentQuestCondVOs);//Need to be implemented
-							if(!condFlag){//Condition not satisfied so skip this question
-								//increase last page by 1 due to skip of this question
-								lastpage++;
-								continue;
-							}
-						}
-						//increase last page by 1 due to execution of this question
-						lastpage++;
-						
-						/*
-						 * 1 - Before going to process any question it is to be checked whether allow saving is
-						 * active or not 
-						 * 2 - If it is active then check what is the lastpage available in answer, whether matching 
-						 */
+							logger.debug("Skiping question with id :: "+iCurrentQid);
+						}			
 						
 						
+					}else{//no resume function is there so start questioning from very begining 
 						//Process question if no conditions available OR condition satisfied for this question
 						processQuest(survey,currentQuestModel);//Need to be implemented
-					}//end for selecting a question
-					
-					//Final submit of survey should be done
-					//If Survey answer completed then update status of user
-					if(lastpage == iTotalQuestCount){
-						//Update Survey Status to complete
-						boolean flag = processorService.updateSurveyStatus(survey.getSurveyid(),survey.getUserid(),"complete");
-						logger.debug("updateSurveyStatus--->"+flag);
-						
-						//Submitting survey i.e updating lastpage and submitdate
-						HashMap<String,String> hmSubmit = new HashMap<>();
-						hmSubmit.put("lastpage",lastpage+"");//lastpage
-						hmSubmit.put("submitdate",Utils.getDate("yyyy-MM-dd HH:mm:ss"));
-						//Save Response
-						saveResponse(survey.getSurveyid()+"",survey.getUserid(),hmSubmit,new ArrayList<String>());//send blank list
-						
-						//Show end message
-						System.out.println("\n"+survey.getSurveyls_endtext()+"\n");
 					}
 					
-				}//end if Randomization check
+					
+				}//end for selecting a question
 				
+				//Final submit of survey should be done
+				//If Survey answer completed then update status of user
+				if(lastpage == iTotalQuestCount){
+					//Update Survey Status to complete
+					boolean flag = processorService.updateSurveyStatus(survey.getSurveyid(),survey.getUserid(),"complete");
+					logger.debug("updateSurveyStatus--->"+flag);
+					
+					//Submitting survey i.e updating lastpage and submitdate
+					HashMap<String,String> hmSubmit = new HashMap<>();
+					hmSubmit.put("lastpage",lastpage+"");//lastpage
+					hmSubmit.put("submitdate",Utils.getDate("yyyy-MM-dd HH:mm:ss"));
+					//Save Response
+					saveResponse(survey.getSurveyid()+"",survey.getUserid(),hmSubmit,new ArrayList<String>());//send blank list
+					
+					//Show end message
+					System.out.println("\n"+survey.getSurveyls_endtext()+"\n");
+				}
 				
-			}//end for Group iteration
+			}//end if Randomization check
+			
+			
+		}//end for Group iteration
 			
 			
 			
-		}//end if Check allowsave flag N
 		
 		
 		
@@ -327,6 +348,7 @@ public class SurveyProcessor {
 	 * @param strRelevance
 	 * @param listCurrentQuestConds
 	 * @return boolean
+	 * @author Ranvir
 	 **********************************************************************/
 	private boolean validateQuestConditions(String  strRelevance,List<LimeConditionVO> listConditionVO) {
 		String methodname = "validateQuestConditions" ;
@@ -361,9 +383,9 @@ public class SurveyProcessor {
 		logger.info("ENTRY---> methodname : "+methodname);
 		if(currentQuestModel != null){
 			logger.debug("Current Question::"+currentQuestModel);
+			
 			//help field of currentQuestModel function not clear
 			//scale_id of currentQuestModel function not clear
-			//relevance usage not clear
 			
 			//Display Question
 			promptQuestion(survey,currentQuestModel);
@@ -438,6 +460,14 @@ public class SurveyProcessor {
 	private void promptQuestion(PanelSurveyVO survey,LimeQuestionsModel currentQuestion) {
 		String methodname = "promptQuestion" ;
 		logger.info("ENTRY---> methodname : "+methodname);
+		
+		//Show survey progress if configured
+		if(StringUtils.equalsIgnoreCase(survey.getShowprogress(),"Y")){
+			int iPercentageCompleted = Utils.getPercentage(lastpage-1, iTotalQuestCount);
+			System.out.println("\n\n\tShow Progress in progress bar : "+iPercentageCompleted+" % completed");
+		}
+		
+		//Show survey title
 		System.out.println("\n\n"+surveyLanguageSettings.getSurveyls_title()+"\n");
 		
 		//surveyid known,group id known, qid known

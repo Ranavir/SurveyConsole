@@ -15,7 +15,7 @@ import com.stl.surveyconsole.vo.LimeConditionVO;
 
 /**
  * This class helps in conversion of expressions into useful values or
- * evaluation of expressions
+ * evaluation of boolean expressions within parenthesis
  * 
  * @author Ranvir
  * @date 12-Nov-2016
@@ -105,7 +105,11 @@ public class ExpressionManager {
 							case "<":
 										logger.debug("oper :: <");
 										if(condQuestType.trim().matches("[N]")){
-											result = Double.parseDouble(userValue) < Double.parseDouble(value);
+											if(StringUtils.isEmpty(userValue)){
+												result = false;
+											}else{
+												result = Double.parseDouble(userValue) < Double.parseDouble(value);
+											}
 										}else{
 											result = userValue.compareTo(value) < 0 ? true : false ;
 										}
@@ -113,7 +117,12 @@ public class ExpressionManager {
 							case "<=":
 										logger.debug("oper :: <=");
 										if(condQuestType.trim().matches("[N]")){
-											result = Double.parseDouble(userValue) <= Double.parseDouble(value);
+											if(StringUtils.isEmpty(userValue)){
+												result = false;
+											}else{
+												result = Double.parseDouble(userValue) <= Double.parseDouble(value);
+											}
+											
 										}else{
 											result = (userValue.compareTo(value) <= 0) ? true : false ;
 										}
@@ -121,7 +130,11 @@ public class ExpressionManager {
 							case "==":
 										logger.debug("oper :: ==");
 										if(condQuestType.trim().matches("[N]")){
-											result = Double.parseDouble(userValue) == Double.parseDouble(value);
+											if(StringUtils.isEmpty(userValue)){
+												result = false;
+											}else{
+												result = Double.parseDouble(userValue) == Double.parseDouble(value);
+											}
 										}else{
 											result = (userValue.compareTo(value) == 0) ? true : false ;
 										}
@@ -129,7 +142,11 @@ public class ExpressionManager {
 							case "!=":
 										logger.debug("oper :: !=");
 										if(condQuestType.trim().matches("[N]")){
-											result = Double.parseDouble(userValue) != Double.parseDouble(value);
+											if(StringUtils.isEmpty(userValue)){
+												result = false;
+											}else{
+												result = Double.parseDouble(userValue) != Double.parseDouble(value);
+											}
 										}else{
 											result = (userValue.compareTo(value) != 0) ? true : false ;
 										}
@@ -137,7 +154,11 @@ public class ExpressionManager {
 							case ">=":
 										logger.debug("oper :: >=");
 										if(condQuestType.trim().matches("[N]")){
-											result = Double.parseDouble(userValue) >= Double.parseDouble(value);
+											if(StringUtils.isEmpty(userValue)){
+												result = false;
+											}else{
+												result = Double.parseDouble(userValue) >= Double.parseDouble(value);
+											}
 										}else{
 											result = (userValue.compareTo(value) >= 0) ? true : false ;
 										}
@@ -145,7 +166,11 @@ public class ExpressionManager {
 							case ">":
 										logger.debug("oper :: >");
 										if(condQuestType.trim().matches("[N]")){
-											result = Double.parseDouble(userValue) > Double.parseDouble(value);
+											if(StringUtils.isEmpty(userValue)){
+												result = false;
+											}else{
+												result = Double.parseDouble(userValue) > Double.parseDouble(value);
+											}
 										}else{
 											result = (userValue.compareTo(value) > 0) ? true : false ;
 										}
@@ -153,7 +178,11 @@ public class ExpressionManager {
 							case "!":
 										logger.debug("oper :: !");
 										if(condQuestType.trim().matches("[N]")){
-											result = Double.parseDouble(userValue) == Double.parseDouble(value) * -1 ;
+											if(StringUtils.isEmpty(userValue)){
+												result = false;
+											}else{
+												result = Double.parseDouble(userValue) == Double.parseDouble(value) * (-1) ;
+											}
 										}
 								break;
 							case "RX":
