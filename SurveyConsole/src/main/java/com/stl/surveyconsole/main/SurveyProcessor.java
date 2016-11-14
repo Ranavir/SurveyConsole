@@ -520,7 +520,7 @@ public class SurveyProcessor {
 				}
 				
 			});
-			if((!StringUtils.isEmpty(lqam.getAttribute())) && StringUtils.equalsIgnoreCase(lqam.getAttribute(),"display_type") && StringUtils.equalsIgnoreCase(lqam.getValue(),"1")){
+			if(null != lqam && (!StringUtils.isEmpty(lqam.getAttribute())) && StringUtils.equalsIgnoreCase(lqam.getAttribute(),"display_type") && StringUtils.equalsIgnoreCase(lqam.getValue(),"1")){
 				System.out.println("Gender Select Radio Type\n");
 			}else{
 				System.out.println("Gender Select Button Type\n");

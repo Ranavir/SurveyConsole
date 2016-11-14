@@ -59,10 +59,11 @@
 	</dependencies>	
 	<!-- Use the  Manifest configuration if you want to build Runnable jar from the build -->
 	<build>
+	<finalName>SurveyConsoleApp</finalName>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
+        <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
 				<source>${jdk.version}</source>
 				<target>${jdk.version}</target>
